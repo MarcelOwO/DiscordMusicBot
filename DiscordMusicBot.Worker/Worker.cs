@@ -4,6 +4,8 @@ public class Worker : BackgroundService
 {
     private readonly ILogger<Worker> _logger;
 
+    private Core.DiscordMusicBot _bot;
+
     public Worker(ILogger<Worker> logger)
     {
         _logger = logger;
@@ -11,6 +13,9 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _logger.LogInformation("Starting Application");
+        
+        
         while (!stoppingToken.IsCancellationRequested)
         {
             if (_logger.IsEnabled(LogLevel.Information))
