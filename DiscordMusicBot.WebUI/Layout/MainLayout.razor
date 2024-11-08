@@ -1,16 +1,69 @@
 ﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
+
+<MudThemeProvider @ref="@_mudThemeProvider" @bind-IsDarkMode="@_isDarkMode" Theme="_myCustomTheme"/>
+
+<MudPopoverProvider/>
+<MudDialogProvider/>
+<MudSnackbarProvider/>
+<MudLayout>
+
+    <MudAppBar Elevation="23">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="() => DrawerToggle()"/>
+        <MudSpacer/>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="23">
         <NavMenu/>
-    </div>
+    </MudDrawer>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large">
             @Body
-        </article>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    bool _drawerOpen = true;
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private bool _isDarkMode;
+    private MudThemeProvider? _mudThemeProvider;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _isDarkMode = await _mudThemeProvider?.GetSystemPreference()!;
+            StateHasChanged();
+        }
+    }
+
+    readonly MudTheme _myCustomTheme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#44cdfa",
+            Secondary = "#ffffff",
+            AppbarBackground = "#818181",
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#fcc98b",
+            Secondary = "#99a3b8",
+            AppbarBackground = "#13171f",
+        },
+
+        LayoutProperties = new LayoutProperties()
+        {
+            DrawerWidthLeft = "260px",
+            DrawerWidthRight = "300px"
+        }
+    };
+
+
+}

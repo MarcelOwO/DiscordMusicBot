@@ -1,40 +1,50 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">DiscordMusicBot.WebUI</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
+﻿<MudPaper Width="200" Class="pa-3 ma-3" Elevation="23">
+    <MudNavMenu>
+        <MudNavLink Icon="@Icons.Material.Filled.Home" Href="/">
+            <MudText Align="Align.Center">Dashboard</MudText>
+        </MudNavLink>
+        <MudNavLink Icon="@Icons.Material.Filled.Person" Href="/Settings">
+            <MudText Align="Align.Center">Settings</MudText>
+        </MudNavLink>
+        <MudNavLink Icon="@Icons.Material.Filled.Code" Href="/Music">
+            <MudText Align="Align.Center">Music</MudText>
+        </MudNavLink>
+        <MudNavLink Icon="@Icons.Material.Filled.Camera" Href="/about">
+            <MudText Align="Align.Center">About</MudText>
+        </MudNavLink>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
+    </MudNavMenu>
+</MudPaper>
+
+<MudPaper Width="200" Class="pa-3 ma-3" Elevation="23">
+    <MudStack>
+        @foreach (var contact in _contacts)
+        {
+            <MudButton Href=@contact.Value.Item1 StartIcon=@contact.Value.Item2>
+                <MudText>@contact.Key</MudText>
+            </MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Width="200" Class="pa-3 ma-3" Elevation="23">
+    <MudStack AlignItems="AlignItems.Center">
+        <MudStack Row="true">
+            <MudText>Contact</MudText>
+            <MudIcon Icon="@Icons.Material.Filled.Mail"></MudIcon>
+        </MudStack>
+        <MudText>marcel-sigl@gmx.de</MudText>
+    </MudStack>
+</MudPaper>
 
 @code {
-    private bool collapseNavMenu = true;
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
+    private readonly Dictionary<string, (string, string)> _contacts = new()
     {
-        collapseNavMenu = !collapseNavMenu;
-    }
+        ["Twitter"] = ("https://x.com/Marcel_Sigl", @Icons.Custom.Brands.Twitter),
+        ["GitHub"] = ("https://github.com/MarcelOwO", @Icons.Custom.Brands.GitHub),
+        ["Instagram"] = ("https://www.instagram.com/marcel_sigl/ ", @Icons.Custom.Brands.Instagram),
+        ["Steam"] = ("https://steamcommunity.com/id/Marcelowo", @Icons.Custom.Brands.Steam),
+    };
 
 }
