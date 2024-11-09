@@ -1,56 +1,90 @@
 @page "/Settings"
+@using DiscordMusicBot.Core
 
 @inject HttpClient Http
 
 <PageTitle>Settings</PageTitle>
+<MudStack>
+    <MudPaper Class="pa-4 mt-4">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h4">BotStatus</MudText>
 
-<MudPaper Class="pa-4">
-    <MudStack Spacing="4">
-        <MudText Typo="Typo.h4">Bot Control</MudText>
-        <MudTextField @bind-Value="token" Label="Bot Token" Variant="Variant.Outlined"/>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartBot">Start Bot</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="StopBot">Stop Bot</MudButton>
-    </MudStack>
-</MudPaper>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GetBotStatus">GetBotStatus</MudButton>
 
-<MudPaper Class="pa-4 mt-4">
-    <MudStack Spacing="4">
-        <MudText Typo="Typo.h4">Channel Control</MudText>
-        <MudTextField @bind-Value="channelId" Label="Channel ID" Variant="Variant.Outlined"/>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="JoinChannel">Join Channel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="LeaveChannel">Leave Channel</MudButton>
-    </MudStack>
-</MudPaper>
+            <MudText>ConnectedChannel: @status.ConnectedChannel, IsRunning: @status.IsRunning, IsConnectedToChannel: @status.IsConnectedToChannel</MudText>
 
-<MudPaper Class="pa-4 mt-4">
-    <MudStack Spacing="4">
-        <MudText Typo="Typo.h4">Connected Servers</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ListServers">List Servers</MudButton>
-            @foreach (var server in servers)
-            {
-                <div>@server.Name (@server.ID)</div>
-            }
-    </MudStack>
-</MudPaper>
+            <MudStack>
+                @foreach (var item in status.QueuedSongs)
+                {
+                    <MudItem>@item</MudItem>
+                }
+            </MudStack>
+        </MudStack>
+    </MudPaper>
 
-<MudPaper Class="pa-4 mt-4">
-    <MudStack Spacing="4">
-        <MudText Typo="Typo.h4">Connected Channels</MudText>
-        <MudTextField @bind-Value="serverId" Label="Server ID" Variant="Variant.Outlined"/>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ListChannels">List Channels</MudButton>
-            @foreach (var channel in channels)
-            {
-                <div>@channel</div>
-            }
-    </MudStack>
-</MudPaper>
+    <MudPaper Class="pa-4">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h4">Bot Control</MudText>
+            <MudTextField @bind-Value="token" Label="Bot Token" Variant="Variant.Outlined"/>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartBot">Start Bot</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="StopBot">Stop Bot</MudButton>
+        </MudStack>
+    </MudPaper>
+
+    @if (status.IsRunning)
+    {
+        <MudPaper Class="pa-4 mt-4">
+            <MudStack Spacing="4">
+                <MudText Typo="Typo.h4">Connected Servers</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ListServers">List Servers</MudButton>
+                @foreach (var server in servers)
+                {
+                    <MudButton Ripple="true" OnClick="() => setServerID(server.ID)">@server.Name</MudButton>
+                }
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 mt-4">
+            <MudStack Spacing="4">
+                <MudText Typo="Typo.h4">Connected Channels</MudText>
+                <MudTextField @bind-Value="serverId" Label="Server ID" Variant="Variant.Outlined"/>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ListChannels">List Channels</MudButton>
+                @foreach (var channel in channels)
+                {
+                    <MudButton Ripple="true" OnClick="() => setChannelID(channel.ID)">@channel.Name</MudButton>
+                }
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 mt-4">
+            <MudStack Spacing="4">
+                <MudText Typo="Typo.h4">Channel Control</MudText>
+                <MudTextField @bind-Value="channelId" Label="Channel ID" Variant="Variant.Outlined"/>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="JoinChannel">Join Channel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="LeaveChannel">Leave Channel</MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper Class="pa-4">
+            <MudStack Spacing="4">
+                <MudText Typo="Typo.h4">Bot is not running</MudText>
+                <MudTextField @bind-Value="serverId" Label="Wait for the api to start" Variant="Variant.Outlined"/>
+            </MudStack>
+        </MudPaper>
+    }
+</MudStack>
 
 @code {
+
     private string token;
     private string channelId;
     private string serverId;
     private List<ServerData> servers = new();
-    private List<string> channels = new();
+    private List<ChannelData> channels = new();
+    private BotStatus status = new();
+
 
     private async Task StartBot()
     {
@@ -83,13 +117,34 @@
 
     private async Task ListChannels()
     {
-        channels = await Http.GetFromJsonAsync<List<string>>($"/api/bot/channels/{serverId}");
+        channels = await Http.GetFromJsonAsync<List<ChannelData>>($"/api/bot/channels/{serverId}");
+    }
+
+    private async Task GetBotStatus()
+    {
+        status = await Http.GetFromJsonAsync<BotStatus>($"/api/bot/status");
     }
 
     public class ServerData
     {
-        public string Name { get; set; }
-        public string ID { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string ID { get; set; } = string.Empty;
+    }
+
+    public class ChannelData
+    {
+        public string Name { get; set; } = string.Empty;
+        public string ID { get; set; } = string.Empty;
+    }
+
+    private void setServerID(string id)
+    {
+        serverId = id;
+    }
+
+    private void setChannelID(string id)
+    {
+        channelId = id;
     }
 
 }

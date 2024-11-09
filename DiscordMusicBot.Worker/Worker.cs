@@ -81,6 +81,11 @@ public class Worker : BackgroundService
 
     public BotStatus GetStatus()
     {
+        if (_bot == null)
+        {
+            return new BotStatus();
+        }
+
         return _bot.GetStatus();
     }
 }

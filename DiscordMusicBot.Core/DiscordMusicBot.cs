@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
@@ -97,9 +98,9 @@ public class DiscordMusicBot
 
     public async Task<IEnumerable<DiscordChannel>> ListConnectedChannel(ulong serverId)
     {
-       Console.WriteLine(serverId);
-        
-        
+        Console.WriteLine(serverId);
+
+
         DiscordGuild? server = null;
         DiscordMember? member = null;
 
@@ -120,21 +121,22 @@ public class DiscordMusicBot
         {
             Console.WriteLine(e.Message);
         }
-        
-        if(server == null) return new List<DiscordChannel>();
+
+        if (server == null) return new List<DiscordChannel>();
 
         try
         {
             member ??= await server.GetMemberAsync(_client.CurrentUser.Id);
-            
+
             Console.WriteLine(member.Nickname);
         }
         catch (ServerErrorException e)
         {
             Console.WriteLine(e);
         }
-        if(member == null) return new List<DiscordChannel>();
-        
+
+        if (member == null) return new List<DiscordChannel>();
+
         return from channel in server.Channels
             where channel.Value.Type == DiscordChannelType.Voice &&
                   channel.Value.PermissionsFor(member)
@@ -145,5 +147,57 @@ public class DiscordMusicBot
     public BotStatus GetStatus()
     {
         return _status;
+    }
+
+    public async Task PlayMusic()
+    {
+        if (connection == null) return;
+
+        var transmit = connection.GetTransmitSink();
+
+        var pcm = ConvertAudioToPCM();
+        await pcm.CopyToAsync(transmit);
+        await pcm.DisposeAsync();
+    }
+
+    public async Task StopMusic()
+    {
+        if (connection == null) return;
+        connection.GetTransmitSink().Pause();
+
+        connection.GetTransmitSink().Dispose();
+    }
+
+    public async Task PauseMusic()
+    {
+        if (connection == null) return;
+        if (!connection.IsPlaying) return;
+        connection.Pause();
+    }
+
+    public async Task ResumeMusic()
+    {
+        if (connection == null) return;
+
+        if (connection.IsPlaying) return;
+
+        await connection.ResumeAsync();
+    }
+
+    private Stream ConvertAudioToPCM()
+    {
+        var ffmpeg = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = $"-i music.mp3 -f s16le -ar 48000 -ac 2 pipe:1",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+
+        return ffmpeg.StandardOutput.BaseStream;
     }
 }
