@@ -1,0 +1,10 @@
+using System.Text.Json.Serialization;
+
+namespace DiscordMusicBot.Core.Models;
+
+[method: JsonConstructor]
+public class ChannelData(string id, string name)
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = id;
+    [JsonPropertyName("name")] public string Name { get; set; } = name;
+}

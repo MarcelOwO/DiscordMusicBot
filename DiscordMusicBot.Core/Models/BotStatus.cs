@@ -1,4 +1,4 @@
-namespace DiscordMusicBot.Core;
+namespace DiscordMusicBot.Core.Models;
 
 public class BotStatus
 {

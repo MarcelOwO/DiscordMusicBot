@@ -5,10 +5,15 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>dotnet-DiscordMusicBot.Worker-6b868750-29c6-49aa-932d-efe6277a0cfc</UserSecretsId>
+        <SelfContained>false</SelfContained>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="CSCore" Version="1.2.1.2" />
+        <PackageReference Include="LibVLCSharp" Version="3.9.0" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1"/>
+        <PackageReference Include="NAudio" Version="2.2.1" />
+        <PackageReference Include="YoutubeExplode" Version="6.4.3" />
     </ItemGroup>
 
     <ItemGroup>

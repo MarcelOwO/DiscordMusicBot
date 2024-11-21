@@ -9,6 +9,7 @@
     <ItemGroup>
       <PackageReference Include="DSharpPlus" Version="5.0.0-nightly-02404" />
       <PackageReference Include="DSharpPlus.VoiceNext" Version="5.0.0-nightly-02404" />
+      <PackageReference Include="YoutubeDLSharp" Version="1.1.1" />
     </ItemGroup>
 
 </Project>

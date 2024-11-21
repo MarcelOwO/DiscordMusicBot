@@ -1,13 +1,67 @@
 ﻿@page "/"
 
+
+@inject ApiController ApiControllerInstance 
+
 <PageTitle>Dashboard</PageTitle>
 
 <MudPaper id="paper1" Class="pa-15 ma-10 " Elevation="23" gap-4>
     <MudStack Justify="Justify.Center">
         <MudText Typo="Typo.h2" Align="Align.Center" Color="Color.Primary">Dashboard</MudText>
+
         <MudDivider/>
-        <MudText Typo="Typo.body1" Align="Align.Left" Color="Color.Primary">This part is still work in progress</MudText>
-        
-        
+
+        @if (ApiControllerInstance.APIIsOnline)
+        {
+            <MudPaper Class="pa-4 mt-4">
+                <MudStack Spacing="4">
+                    <MudText Typo="Typo.h4">BotStatus</MudText>
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApiControllerInstance.GetBotStatus">GetBotStatus</MudButton>
+
+                    <MudItem xs="3">
+                        <MudPaper >
+                            <MudText Typo="Typo.h6" Color="Color.Primary">ConnectedChannel:</MudText>
+                            <MudText>@ApiControllerInstance.Status.ConnectedChannel</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="3">
+                        <MudPaper Class="pa-4 mt-4">
+                            <MudText Typo="Typo.h6" Color="Color.Primary"> IsRunning:</MudText>
+                            <MudText>@ApiControllerInstance.Status.IsRunning,</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="3">
+                        <MudPaper Class="pa-4 mt-4">
+                            <MudText Typo="Typo.h6" Color="Color.Primary">IsConnectedToChannel:</MudText>
+                            <MudText>@ApiControllerInstance.Status.IsConnectedToChannel</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {
+            <MudPaper Class="pa-4 mt-4">
+                <MudStack Spacing="4">
+                    <MudText Typo="Typo.h4">API Status</MudText>
+                    <MudText>BackEnd is offline</MudText>
+                </MudStack>
+            </MudPaper>
+        }
     </MudStack>
 </MudPaper>
+
+@code{
+
+    protected override void OnInitialized()
+    {
+        ApiControllerInstance.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ApiControllerInstance.OnChange -= StateHasChanged;
+    }
+
+}

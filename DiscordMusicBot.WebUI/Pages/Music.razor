@@ -1,6 +1,95 @@
 @page "/Music"
-<h3>Music</h3>
 
-@code {
-    
+@inject ApiController APIController
+
+<PageTitle>Settings</PageTitle>
+<MudStack>
+
+    <MudPaper Class="pa-4">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h4">Controls</MudText>
+
+            <MudStack Spacing="10" Row="true">
+
+
+                <MudIconButton Icon="@Icons.Material.Rounded.SkipPrevious" OnClick="() => APIController.NextSong()">Previous Song</MudIconButton>
+
+                @if (APIController.IsPlaying)
+                {
+                    <MudIconButton Icon="@Icons.Material.Rounded.PlayArrow" OnClick="() => APIController.Play()"> Play Song</MudIconButton>
+                }
+                else
+                {
+                    <MudIconButton Icon="@Icons.Material.Rounded.Pause" OnClick="() => APIController.Pause()"> Pause Song</MudIconButton>
+                }
+
+                <MudIconButton Icon="@Icons.Material.Rounded.SkipNext" OnClick="() => APIController.PreviousSong()">Next Song</MudIconButton>
+
+            </MudStack>
+
+            <MudDivider/>
+
+            <MudSlider T="int" bind-Value="APIController.Volume" Min="0" Max="100" ValueChanged="i => APIController.UpdateVolume(i)"></MudSlider>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-4">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h4">Currently Playing</MudText>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-4">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h4">Queue</MudText>
+            @foreach (var song in APIController.Queue)
+            {
+                <MudPaper Class="pa-4">
+                    <MudStack Row="true">
+                        <MudText>@song.Title</MudText>
+
+                        <MudSpacer/>
+
+                        <MudIconButton Icon="@Icons.Material.Rounded.PlayArrow" OnClick="() => APIController.PlayId(song)">Play</MudIconButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </MudPaper>
+
+    <MudPaperc Class="pa-4">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h4">Search for songs</MudText>
+            <MudTextField @bind-Value="APIController.Search" Label="Search" Variant="Variant.Outlined" OnKeyDown="args => APIController.CheckIfEnterOnSearch(args)"/>
+
+            <MudButton OnClick="() => APIController.SearchSongsRequest()">Search Songs</MudButton>
+
+            @foreach (var song in APIController.LastSongSeachResult)
+            {
+                <MudPaper Class="pa-4">
+                    <MudStack Row="true">
+                        <MudImage Src="@song.Thumbnail"/>
+                        <MudText>@song.Title</MudText>
+                        <MudButton OnClick="() => APIController.AddSongToQueue(song)">Add</MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </MudPaperc>
+</MudStack>
+
+
+@code{
+
+    protected override void OnInitialized()
+    {
+        APIController.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        APIController.OnChange -= StateHasChanged;
+    }
+
+
 }

@@ -4,6 +4,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>ca2740aa-830f-42a3-bef6-da770cf5771e</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,11 +13,6 @@
         <PackageReference Include="MudBlazor" Version="8.0.0-preview.4" />
     </ItemGroup>
 
-    <ItemGroup>
-      <_ContentIncludedByDefault Remove="wwwroot\css\app.css" />
-      <_ContentIncludedByDefault Remove="wwwroot\css\bootstrap\bootstrap.min.css" />
-      <_ContentIncludedByDefault Remove="wwwroot\css\bootstrap\bootstrap.min.css.map" />
-    </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\DiscordMusicBot.Core\DiscordMusicBot.Core.csproj" />
