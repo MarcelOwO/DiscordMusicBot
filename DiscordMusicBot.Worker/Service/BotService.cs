@@ -8,39 +8,39 @@ public class BotService(Worker worker)
 {
     public async Task StartBot(string token)
     {
-        worker._bot ??= new DSharpPlusWrapper(token);
+        worker.Bot ??= new DSharpPlusWrapper(token);
 
-        await worker._bot.StartBot();
+        await worker.Bot.StartBot();
     }
 
     public async Task StopBot()
     {
-        if (worker._bot == null) return;
+        if (worker.Bot == null) return;
 
-        await worker._bot.StopBot();
+        await worker.Bot.StopBot();
     }
 
     public async Task JoinChannel(ulong channelId)
     {
-        if (worker._bot == null) return;
+        if (worker.Bot == null) return;
 
-        await worker._bot.JoinChannel(channelId);
+        await worker.Bot.JoinChannel(channelId);
     }
 
     public void LeaveChannel()
     {
-        worker._bot?.LeaveChannel();
+        worker.Bot?.LeaveChannel();
     }
 
     public async Task<List<ServerData>> ListConnectedServer()
     {
-        if (worker._bot == null)
+        if (worker.Bot == null)
         {
             Console.WriteLine("Bot is not running");
             return new List<ServerData>();
         }
 
-        var servers = await worker._bot.ListConnectedServer();
+        var servers = await worker.Bot.ListConnectedServer();
         var discordGuilds = servers as DiscordGuild[] ?? servers.ToArray();
 
         if (!discordGuilds.Any())
@@ -53,14 +53,15 @@ public class BotService(Worker worker)
 
     public async Task<List<ChannelData>> ListConnectedChannel(string serverId)
     {
-        if (worker._bot == null) return new List<ChannelData>();
-        var a = await worker._bot.ListConnectedChannel(ulong.Parse(serverId));
+        if (worker.Bot == null) return [];
+        
+        var a = await worker.Bot.ListConnectedChannel(ulong.Parse(serverId));
 
         return a.Select(x => new ChannelData(x.Id.ToString(), x.Name)).ToList();
     }
 
-    public BotStatus GetStatus()
+    public ApiStatus GetStatus()
     {
-        return worker._bot == null ? new BotStatus() : worker._bot.GetStatus();
+        return worker.Bot == null ? new ApiStatus() : worker.Bot.GetStatus();
     }
 }

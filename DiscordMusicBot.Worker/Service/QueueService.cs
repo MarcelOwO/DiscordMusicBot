@@ -1,5 +1,5 @@
+using DiscordMusicBot.Core.Enums;
 using DiscordMusicBot.Core.Models;
-using DiscordMusicBot.Worker.Enums;
 using DiscordMusicBot.Worker.Interface;
 using DiscordMusicBot.Worker.Services;
 
@@ -11,19 +11,16 @@ public class QueueService(Worker worker)
 
     public void UpdateQueue(List<WebQueueItem> webQueue)
     {
-        worker._queue = webQueue.Select(x => worker._queue.First(y => x.Id == y.Id)).ToList();
+        worker.Queue = webQueue.Select(x => worker.Queue.First(y => x.Id == y.Id)).ToList();
     }
 
     public async Task<List<SearchResult>> Search(string name)
     {
-        if (_audioProvider != null)
-        {
-            var value = await _audioProvider.SearchVideos(name);
+        if (_audioProvider == null) return [];
 
-            return value;
-        }
+        var value = await _audioProvider.SearchVideos(name);
 
-        return new List<SearchResult>();
+        return value;
     }
 
     public void SetProvider(AudioProviders provider)
@@ -41,15 +38,32 @@ public class QueueService(Worker worker)
     public async Task AddToQueue(SearchResult searchResult)
     {
         if (_audioProvider == null) return;
+        var exitingCopy = worker.Queue.FindAll(x => x.Id == searchResult.Id);
 
-        var queue = await _audioProvider.GetStream(searchResult);
+        if (exitingCopy.Count > 0)
+        {
+            var queueItem = exitingCopy.First();
 
-        worker._queue.Add(queue);
+            worker.Queue.Add(queueItem);
+        }
+        else
+        {
+            var queueItem = await _audioProvider.GetStream(searchResult);
+            
+            if(queueItem == null) return;
+
+            worker.Queue.Add(queueItem);
+        }
     }
 
 
     public List<WebQueueItem> GetQueue()
     {
-        return (from x in worker._queue select new WebQueueItem() { Id = x.Id, Title = x.Title }).ToList();
+        return (from x in worker.Queue select new WebQueueItem(x, false)).ToList();
+    }
+
+    public string GetCurrentSong()
+    {
+        return worker.CurrentQueueIndex.ToString();
     }
 }

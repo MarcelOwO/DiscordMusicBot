@@ -13,7 +13,7 @@ public class DSharpPlusWrapper
     private VoiceNextConnection? _connection;
     private VoiceTransmitSink? _transmitSink;
 
-    private readonly BotStatus _status = new();
+    private readonly ApiStatus _status = new();
 
     public DSharpPlusWrapper(string token)
     {
@@ -31,7 +31,7 @@ public class DSharpPlusWrapper
         }
         catch (Exception e) when (e is UnauthorizedAccessException or BadRequestException or ServerErrorException)
         {
-            Console.WriteLine(e.Message);
+            Console.WriteLine("Failed to connect to discord");
             return;
         }
 
@@ -52,11 +52,17 @@ public class DSharpPlusWrapper
         }
         catch (Exception e) when (e is NotFoundException or BadRequestException or ServerErrorException)
         {
-            Console.WriteLine(e.Message);
+            Console.WriteLine("Failed to get channel");
             return;
         }
 
         _connection = await _channel.ConnectAsync();
+
+        if (_connection == null)
+        {
+            Console.WriteLine("Failed to connect to channel");
+            return;
+        }
 
         _transmitSink = _connection.GetTransmitSink();
 
@@ -81,8 +87,8 @@ public class DSharpPlusWrapper
 
     public async Task<IEnumerable<DiscordChannel>> ListConnectedChannel(ulong serverId)
     {
-        DiscordGuild? server = null;
-        DiscordMember? member = null;
+        DiscordGuild? server;
+        DiscordMember? member;
 
         try
         {
@@ -90,22 +96,19 @@ public class DSharpPlusWrapper
         }
         catch (Exception e) when (e is NotFoundException or BadRequestException or ServerErrorException)
         {
-            Console.WriteLine(e.Message);
+            Console.WriteLine("Failed to get connected servers");
+            return [];
         }
-
-
-        if (server == null) return new List<DiscordChannel>();
 
         try
         {
-            member ??= await server.GetMemberAsync(_client.CurrentUser.Id);
+            member = await server.GetMemberAsync(_client.CurrentUser.Id);
         }
-        catch (ServerErrorException e)
+        catch (Exception e) when (e is ServerErrorException)
         {
-            Console.WriteLine(e);
+            Console.WriteLine("Failed to get bot member in server");
+            return [];
         }
-
-        if (member == null) return new List<DiscordChannel>();
 
         return from channel in server.Channels
             where channel.Value.Type == DiscordChannelType.Voice &&
@@ -114,51 +117,54 @@ public class DSharpPlusWrapper
             select channel.Value;
     }
 
-    public BotStatus GetStatus()
+    public ApiStatus GetStatus()
     {
         return _status;
     }
 
+    public VoiceTransmitSink? GetConnection()
+    {
+        return _transmitSink;
+    }
+
+/*
     public async Task PlayMusicAsync(Stream stream, CancellationToken token, ManualResetEventSlim manualResetEventSlim)
     {
         if (_connection == null)
         {
+            Console.WriteLine("Failed to play music because connection is null");
             return;
         }
 
         if (_transmitSink == null)
         {
+            Console.WriteLine("Failed to play music because transmit sink is null");
             return;
         }
-
-        var buffer = new byte[81920];
-
-        int bytesRead;
 
         try
         {
-            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+            Memory<byte> buffer = new(new byte[32768]);
+
+            int bytesRead;
+
+            while ((bytesRead = await stream.ReadAsync(buffer, token)) > 0)
             {
                 manualResetEventSlim.Wait(token);
-                await _transmitSink.WriteAsync(buffer, 0, bytesRead, token);
+
+                await _transmitSink.WriteAsync(buffer[..bytesRead], token);
             }
         }
-        catch (Exception e) when (e is OperationCanceledException or ObjectDisposedException)
+        catch (Exception e) when (e is OperationCanceledException or InvalidOperationException
+                                      or ObjectDisposedException)
         {
             Console.WriteLine("Stream processing canceled in bot");
-            await stream.DisposeAsync();
-            
-            return;
         }
-
-        await stream.DisposeAsync();
     }
-
+*/
     public void PauseMusic()
     {
-        if (_transmitSink == null) return;
-
-        _transmitSink.Pause();
+        _transmitSink?.Pause();
     }
 
     public async Task ResumeMusic()
@@ -171,8 +177,6 @@ public class DSharpPlusWrapper
     public void StopMusic()
     {
         if (_transmitSink == null) return;
-
-        _transmitSink.Pause();
         _transmitSink.Dispose();
     }
 

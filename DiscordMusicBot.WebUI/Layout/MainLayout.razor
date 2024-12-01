@@ -1,4 +1,7 @@
-﻿@inherits LayoutComponentBase
+﻿@using DiscordMusicBot.Core.Enums
+@inherits LayoutComponentBase
+
+@inject ApiController APIController
 
 <MudThemeProvider @ref="@_mudThemeProvider" @bind-IsDarkMode="@_isDarkMode" Theme="_myCustomTheme"/>
 
@@ -21,6 +24,17 @@
             @Body
         </MudContainer>
     </MudMainContent>
+
+    <MudAppBar Bottom="true" Fixed="true" Color="Color.Secondary" Elevation="10" justify-center>
+        <MudText  >@APIController.currentID</MudText>
+        <MudDivider Vertical="true"/>
+        <MudStack Spacing="10" Row="true">
+            <MudIconButton Icon="@Icons.Material.Rounded.SkipPrevious" OnClick="() => APIController.PreviousSong()">Previous Song</MudIconButton>
+            <MudIconButton Icon="@Icons.Material.Rounded.SkipNext" OnClick="() => APIController.NextSong()">Next Song</MudIconButton>
+        </MudStack>
+        <MudDivider Vertical="true"/>
+        <MudProgressLinear Buffer="true" Class="my-7" Value="50" Min="0" Max="100"></MudProgressLinear>
+    </MudAppBar>
 </MudLayout>
 
 @code {

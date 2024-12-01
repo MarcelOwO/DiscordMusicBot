@@ -1,4 +1,4 @@
-namespace DiscordMusicBot.Worker.Enums;
+namespace DiscordMusicBot.Core.Enums;
 
 public enum AudioProviders
 {

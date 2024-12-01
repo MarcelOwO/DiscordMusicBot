@@ -1,71 +1,110 @@
 using System.Net.Http.Json;
+using DiscordMusicBot.Core.Enums;
 using DiscordMusicBot.Core.Models;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.FileSystemGlobbing.Internal.PathSegments;
 
 namespace DiscordMusicBot.WebUI.Services;
 
 public class ApiController
 {
-    private HttpClient Client { get; set; }
-
-    public bool BotIsOnline;
+    private HttpClient Client { get; }
+    private LocalStorageService LocalStorageService { get; }
 
     public string Token = string.Empty;
     public string ChannelId = string.Empty;
     public string ServerId = string.Empty;
+
     public string Search = string.Empty;
 
 
-    public List<ServerData> Servers = new();
-    public List<ChannelData> Channels = new();
+    public List<ServerData> Servers = [];
+    public List<ChannelData> Channels = [];
 
-    public BotStatus Status = new();
+    public ApiStatus ApiStatusData = new();
 
+    public event Action? OnChange;
 
-    public event Action OnChange;
+    private const string AppIdentifier = "UWUDISCORDMUSICBOT";
 
     public int Volume { get; set; }
 
-    public bool IsPlaying { get; set; } = true;
+    private Timer? _timer;
+    private Timer? _volumeDebounceTimer;
 
-    public async Task UpdateVolume(int volume)
-    {
-        var response = await Client.PostAsJsonAsync("/api/bot/volume", Volume.ToString());
+    public string currentID = string.Empty;
 
-        Volume = volume;
-    }
+    public List<AudioProviders> AudioProviders { get; } =
+    [
+        Core.Enums.AudioProviders.Youtube, Core.Enums.AudioProviders.Tidal, Core.Enums.AudioProviders.Spotify
+    ];
 
-    public List<SearchResult> LastSongSeachResult { get; set; } = new();
-    public List<WebQueueItem> Queue { get; set; } = new();
-    public bool APIIsOnline { get; set; }
+    public AudioProviders SelectedAudioProvider { get; set; } = Core.Enums.AudioProviders.Youtube;
 
-    public ApiController(HttpClient client)
+    public List<SearchResult> LastSongSearchResult { get; set; } = new();
+
+
+    public ApiController(HttpClient client, LocalStorageService storageService)
     {
         Client = client;
-
-        var timer = new Timer(async _ =>
+        LocalStorageService = storageService;
+        try
         {
-            await CheckIfBotIsOnline();
-
-            if (BotIsOnline && APIIsOnline)
-            {
-                await GetQueue();
-            }
-
-            OnChange?.Invoke();
-        }, null, 0, 5000);
-
-        Task.Run(async () =>
+            _timer = new Timer(TimerCallback, null, 0, 5000);
+        }
+        catch (Exception e) when (e is ArgumentOutOfRangeException or ArgumentNullException)
         {
-            await GetBotStatus();
-            OnChange?.Invoke();
-        });
+            _timer?.Dispose();
+
+            Console.WriteLine(e);
+        }
     }
 
-    private async Task CheckIfBotIsOnline()
+    private async void TimerCallback(object? state)
     {
-        var response = await Client.GetAsync($"/check");
-        APIIsOnline = response.IsSuccessStatusCode;
+        if (ApiStatusData.IsRunning) return;
+
+        await Task.Run(async () => await CheckApiStatus());
+
+        OnChange?.Invoke();
+    }
+
+    private async Task CheckApiStatus()
+    {
+        HttpResponseMessage response;
+
+        try
+        {
+            response = await Client.GetAsync($"/check");
+        }
+        catch (Exception e) when (e is InvalidOperationException or HttpRequestException or TaskCanceledException
+                                      or UriFormatException)
+        {
+            return;
+        }
+
+        ApiStatusData.IsRunning = response.IsSuccessStatusCode;
+
+        if (response.IsSuccessStatusCode)
+        {
+            await GetApiStatus();
+
+            if (_timer != null)
+            {
+                await _timer.DisposeAsync();
+                _timer = null;
+            }
+        }
+    }
+
+    private async Task GetApiStatus()
+    {
+        var response = await Client.GetFromJsonAsync<ApiStatus>("/api/bot/status");
+
+        if (response != null)
+        {
+            ApiStatusData = response;
+        }
     }
 
 
@@ -75,7 +114,7 @@ public class ApiController
 
         if (response.IsSuccessStatusCode)
         {
-            BotIsOnline = true;
+            ApiStatusData.BotIsRunning = true;
         }
     }
 
@@ -85,7 +124,7 @@ public class ApiController
 
         if (response.IsSuccessStatusCode)
         {
-            BotIsOnline = false;
+            ApiStatusData.BotIsRunning = false;
         }
     }
 
@@ -130,15 +169,19 @@ public class ApiController
         ChannelId = id;
     }
 
-    public async Task GetBotStatus()
-    {
-        var result = await Client.GetFromJsonAsync<BotStatus>($"/api/bot/status");
+    #region Search
 
-        if (result != null)
+    public async Task CheckIfEnterOnSearch(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
         {
-            Status = result;
-            BotIsOnline = true;
+            LastSongSearchResult = await SearchSongs();
         }
+    }
+
+    public async Task SearchSongsRequest()
+    {
+        LastSongSearchResult = await SearchSongs();
     }
 
     private async Task<List<SearchResult>> SearchSongs()
@@ -149,7 +192,7 @@ public class ApiController
 
         if (Search == string.Empty)
         {
-            return new List<SearchResult>();
+            return [];
         }
 
         var response = await Client.PostAsJsonAsync("/api/bot/search", query);
@@ -158,41 +201,54 @@ public class ApiController
 
         if (!response.IsSuccessStatusCode)
         {
-            return new List<SearchResult>();
+            return [];
         }
 
         var result = await response.Content.ReadFromJsonAsync<List<SearchResult>>();
 
         Console.WriteLine(result);
 
-        if (result == null)
-        {
-            return new List<SearchResult>();
-        }
-
-        return result;
+        return result ?? [];
     }
 
+    #endregion
+
+    #region Persistance
+
+    public async Task SaveData()
+    {
+        await LocalStorageService.SetItem(AppIdentifier + "token", Token);
+        await LocalStorageService.SetItem(AppIdentifier + "channelId", ChannelId);
+        await LocalStorageService.SetItem(AppIdentifier + "serverId", ServerId);
+    }
+
+    public async Task GetSavedData()
+    {
+        Token = await LocalStorageService.GetItem(AppIdentifier + "token");
+        ChannelId = await LocalStorageService.GetItem(AppIdentifier + "channelId");
+        ServerId = await LocalStorageService.GetItem(AppIdentifier + "serverId");
+    }
+
+    #endregion
+
+    #region Queue
 
     public async Task AddSongToQueue(SearchResult song)
     {
-        var placeholderItem = new WebQueueItem
-        {
-            Id = song.Id,
-            Title = song.Title,
-        };
+        var placeholderItem = new WebQueueItem(song.Id, song.Title, true);
 
-        Queue.Add(placeholderItem);
+        ApiStatusData.QueuedSongs.Add(placeholderItem);
+
         OnChange?.Invoke();
 
         var response = await Client.PostAsJsonAsync("/api/bot/add", song);
         if (response.IsSuccessStatusCode)
         {
-            Queue = await GetQueue();
+            ApiStatusData.QueuedSongs = await GetQueue();
         }
         else
         {
-            Queue.Remove(placeholderItem);
+            ApiStatusData.QueuedSongs.Remove(placeholderItem);
         }
 
         OnChange?.Invoke();
@@ -202,21 +258,10 @@ public class ApiController
     {
         var response = await Client.GetFromJsonAsync<List<WebQueueItem>>("/api/bot/queue");
 
-        if (response == null)
-        {
-            return new List<WebQueueItem>();
-        }
-
-        return response;
+        return response ?? [];
     }
 
-
-    public async Task SearchSongsRequest()
-    {
-        var task = SearchSongs();
-
-        LastSongSeachResult = await task;
-    }
+    #endregion
 
 
     public async Task PlayId(WebQueueItem song)
@@ -231,31 +276,99 @@ public class ApiController
 
     public async Task Play()
     {
-        IsPlaying = true;
+        ApiStatusData.PlaybackState = PlaybackState.Playing;
+
         _ = await Client.PostAsync($"/api/bot/play", null);
+        await GetCurrentSong();
     }
 
     public async Task Pause()
     {
-        IsPlaying = false;
-        _ = await Client.PostAsync($"/api/bot/pause", null);
+        ApiStatusData.PlaybackState = PlaybackState.Paused;
+
+        try
+        {
+            _ = await Client.PostAsync($"/api/bot/pause", null);
+        }
+        catch (Exception e) when (e is InvalidOperationException or HttpRequestException or TaskCanceledException
+                                      or UriFormatException)
+        {
+            Console.WriteLine(e);
+        }
+
+        await GetCurrentSong();
     }
 
-    public async Task CheckIfEnterOnSearch(KeyboardEventArgs args)
-    {
-        if (args.Key == "Enter")
-        {
-            await SearchSongsRequest();
-        }
-    }
 
     public async Task NextSong()
     {
-        _ = await Client.PostAsync($"/api/bot/next", null);
+        try
+        {
+            _ = await Client.PostAsync($"/api/bot/next", null);
+        }
+        catch (Exception e) when (e is InvalidOperationException or HttpRequestException or TaskCanceledException
+                                      or UriFormatException)
+        {
+            Console.WriteLine(e);
+        }
+
+        await GetCurrentSong();
     }
 
     public async Task PreviousSong()
     {
-        _ = await Client.PostAsync($"/api/bot/previous", null);
+        try
+        {
+            _ = await Client.PostAsync($"/api/bot/previous", null);
+        }
+        catch (Exception e) when (e is InvalidOperationException or HttpRequestException or TaskCanceledException
+                                      or UriFormatException)
+        {
+            Console.WriteLine(e);
+        }
+
+        await GetCurrentSong();
     }
+
+
+    public async Task GetCurrentSong()
+    {
+        HttpResponseMessage? response;
+        try
+        {
+            response = await Client.GetAsync($"/api/bot/current");
+        }
+        catch (Exception e) when (e is InvalidOperationException or HttpRequestException or TaskCanceledException
+                                      or UriFormatException)
+        {
+            Console.WriteLine(e);
+            return;
+        }
+
+        currentID = await response?.Content.ReadAsStringAsync();
+    }
+
+    #region Volume
+
+    private async Task UpdateVolume(int volume)
+    {
+        var response = await Client.PostAsJsonAsync("/api/bot/volume", Volume.ToString());
+
+        if (response.IsSuccessStatusCode)
+        {
+            Volume = volume;
+        }
+    }
+
+    public async Task OnVolumeChanged(int volume)
+    {
+        _volumeDebounceTimer?.Dispose();
+
+        _volumeDebounceTimer = new Timer(async _ => await UpdateVolume(volume), null, 300, Timeout.Infinite);
+
+
+        await UpdateVolume(volume);
+    }
+
+    #endregion
 }

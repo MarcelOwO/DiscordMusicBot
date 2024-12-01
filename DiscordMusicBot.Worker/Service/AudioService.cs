@@ -1,4 +1,4 @@
-using DiscordMusicBot.Worker.Enums;
+using DiscordMusicBot.Core.Enums;
 using DiscordMusicBot.Worker.Services;
 
 namespace DiscordMusicBot.Worker.Service;
@@ -6,164 +6,172 @@ namespace DiscordMusicBot.Worker.Service;
 public class AudioService(Worker worker)
 {
     private readonly StreamProcessor _streamProcessor = new();
-    private CancellationTokenSource _cancellationTokenSource = new();
-    private readonly ManualResetEventSlim _manualResetEventSlim = new(true);
 
-    private int _currentQueueIndex;
-    private int Volume = 50;
+    private int _volume;
 
     private PlaybackState _playbackState = PlaybackState.Stopped;
 
+    public int CurrentQueueIndex { get; private set; }
 
     public async Task Play()
     {
-        if (worker._bot == null)
+        if (worker.Bot == null)
         {
             Console.WriteLine("Bot is not running");
             return;
         }
 
-        if (worker._queue.Count == 0)
+        if (worker.Queue.Count == 0)
         {
             Console.WriteLine("Queue is empty");
             return;
         }
 
-        if (_cancellationTokenSource.IsCancellationRequested)
-        {
-            _cancellationTokenSource = new CancellationTokenSource();
-        }
-
         switch (_playbackState)
         {
             case PlaybackState.Playing:
+                Console.WriteLine("Pause");
                 Pause();
                 break;
             case PlaybackState.Paused:
+                Console.WriteLine("Resume");
                 await Resume();
                 break;
             case PlaybackState.Stopped:
+                Console.WriteLine("Play");
                 await PlayInternalAsync();
                 break;
+            default:
+                throw new ArgumentOutOfRangeException();
         }
     }
 
     private async Task PlayInternalAsync()
     {
-        if (worker._bot == null) return;
+        if (worker.Bot == null)
+        {
+            Console.WriteLine("Escaping internalmusiclogic because bot is null");
+            return;
+        }
 
         _playbackState = PlaybackState.Playing;
 
-        if (_manualResetEventSlim.IsSet) _manualResetEventSlim.Reset();
 
-        var song = worker._queue[_currentQueueIndex];
+        var song = worker.Queue[CurrentQueueIndex];
 
-        var stream = song.StreamTask.Value;
-        var token = _cancellationTokenSource.Token;
-        _currentQueueIndex = (_currentQueueIndex + 1) % worker._queue.Count;
-        await using var processedStream = await _streamProcessor.ProcessStreamAsync(stream, token);
-        await worker._bot.PlayMusicAsync(processedStream, token, _manualResetEventSlim);
+
+        try
+        {
+            await _streamProcessor.ProcessStreamAsync(song.filePath, worker.Bot.GetConnection());
+        }
+        catch (Exception e) when (e is ObjectDisposedException)
+        {
+            Console.WriteLine("Error while playing music because of cancellation token missing");
+        }
     }
 
     public void Pause()
     {
-        if (worker._bot == null) return;
-        if (_playbackState != PlaybackState.Playing) return;
-
-        lock (_manualResetEventSlim)
+        if (worker.Bot == null)
         {
-            if (_manualResetEventSlim.IsSet)
-            {
-                _manualResetEventSlim.Reset();
-            }
+            Console.WriteLine("Escaping pausing music because bot is null");
+            return;
         }
 
-        _playbackState = PlaybackState.Paused;
+        if (_playbackState != PlaybackState.Playing)
+        {
+            Console.WriteLine("Escaping pausing music because playback state is not playing");
+            return;
+        }
 
-      //  worker._bot.PauseMusic();
+
+        _playbackState = PlaybackState.Paused;
+        _streamProcessor.PausePlayback();
+        //worker.Bot.PauseMusic();
     }
 
     private async Task Resume()
     {
-        if (worker._bot == null) return;
-        if (_playbackState != PlaybackState.Paused) return;
-
-        lock (_manualResetEventSlim)
+        if (worker.Bot == null)
         {
-            if (!_manualResetEventSlim.IsSet)
-            {
-                _manualResetEventSlim.Set();
-            }
+            Console.WriteLine("Escaping resuming music because bot is null");
+            return;
         }
 
+        if (_playbackState != PlaybackState.Paused)
+        {
+            Console.WriteLine("Escaping resuming music because playback state is not paused");
+            return;
+        }
+
+        _streamProcessor.ResumePlayback();
         _playbackState = PlaybackState.Playing;
 
-
-      //  await worker._bot.ResumeMusic();
+        //await worker.Bot.ResumeMusic();
     }
 
 
     private async Task Stop()
     {
-        if (worker._bot == null) return;
-        if (_playbackState == PlaybackState.Stopped) return;
-
-        _playbackState = PlaybackState.Stopped;
-
-        if (_cancellationTokenSource != null)
+        if (worker.Bot == null)
         {
-            _cancellationTokenSource.Cancel();
-            await Task.Delay(100);
-
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = new CancellationTokenSource();
+            Console.WriteLine("Escaping stopping music because bot is null");
+            return;
         }
 
-        _manualResetEventSlim.Set();
+        if (_playbackState == PlaybackState.Stopped)
+        {
+            Console.WriteLine("Escaping stopping music because playback state is stopped");
+            return;
+        }
 
-        //worker._bot.StopMusic();
+        _streamProcessor.StopPlayback();
+
+        _playbackState = PlaybackState.Stopped;
     }
 
 
     public Task SetVolume(string volume)
     {
-        Volume = int.Parse(volume);
+        _volume = int.Parse(volume);
 
-        worker._bot?.AdjustVolume(int.Parse(volume));
+        worker.Bot?.AdjustVolume(int.Parse(volume));
 
         return Task.CompletedTask;
+        
     }
+    
 
     public string GetVolume()
     {
-        return Volume.ToString();
+        return _volume.ToString();
     }
 
     public async Task NextSong()
     {
-        if (worker._bot == null) return;
-        if (worker._queue.Count == 0) return;
-        
-        _currentQueueIndex = (_currentQueueIndex + 1) % worker._queue.Count;
-        
+        if (worker.Bot == null) return;
+        if (worker.Queue.Count == 0) return;
+
+        CurrentQueueIndex = (CurrentQueueIndex + 1) % worker.Queue.Count;
+
         await Stop();
-        
-        
+
+
         await PlayInternalAsync();
     }
 
     public async Task PreviousSong()
     {
-        if (worker._bot == null) return;
-        if (worker._queue.Count == 0) return;
+        if (worker.Bot == null) return;
+        if (worker.Queue.Count == 0) return;
 
-        if (_currentQueueIndex == 0)
+        if (CurrentQueueIndex == 0)
         {
-            _currentQueueIndex = 0;
+            CurrentQueueIndex = 0;
         }
         else
         {
-            _currentQueueIndex--;
+            CurrentQueueIndex--;
         }
 
         await Stop();

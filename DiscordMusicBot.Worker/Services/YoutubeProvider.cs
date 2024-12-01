@@ -1,3 +1,4 @@
+using System.Security;
 using DiscordMusicBot.Core.Models;
 using DiscordMusicBot.Worker.Interface;
 using YoutubeDLSharp;
@@ -9,54 +10,73 @@ namespace DiscordMusicBot.Worker.Services;
 
 public class YoutubeProvider : IAudioProvider
 {
-    private YoutubeDL _YoutubeDl = new();
-
-    private CancellationTokenSource _CancellationTokenSource = new();
-
-    private IProgress<DownloadProgress> _downloadProgress = new Progress<DownloadProgress>();
-
-    private YoutubeClient _youtube = new();
-
-    private readonly Dictionary<string, VideoSearchResult> _lastSearchResults = new();
+    private readonly YoutubeDL _youtubeDl = new();
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
+    private readonly IProgress<DownloadProgress> _downloadProgress = new Progress<DownloadProgress>();
+    private readonly YoutubeClient _youtube = new();
 
     public YoutubeProvider()
     {
-        _YoutubeDl.OutputFolder = Path.Combine(Path.GetTempPath(), "DiscordMusicBot");
+        try
+        {
+            _youtubeDl.OutputFolder = Path.Combine(Path.GetTempPath(), "DiscordMusicBot");
+        }
+        catch (Exception e) when (e is ArgumentException or ArgumentNullException or SecurityException)
+        {
+            Console.WriteLine("Failed creating temp folder");
+            throw;
+        }
     }
 
     public async Task CancelDownload()
     {
-        await _CancellationTokenSource.CancelAsync();
+        try
+        {
+            await _cancellationTokenSource.CancelAsync();
+        }
+        catch (Exception e) when (e is ObjectDisposedException)
+        {
+            Console.WriteLine("Failed cancelling download");
+        }
     }
 
-    public async Task<QueueItem> GetStream(SearchResult query)
+    public async Task<QueueItem?> GetStream(SearchResult query)
     {
-        var token = _CancellationTokenSource.Token;
-        Console.WriteLine($"querry url: {query.Url}");
-
-        var result = await _YoutubeDl.RunAudioDownload(query.Url, AudioConversionFormat.Opus, token, _downloadProgress);
-
-        if (result.Success)
+        try
         {
-            var path = result.Data as string;
-            return GetData(path, query);
+            var token = _cancellationTokenSource.Token;
+
+
+            var result =
+                await _youtubeDl.RunAudioDownload(query.Url, AudioConversionFormat.Opus, token, _downloadProgress);
+
+            if (result.Success)
+            {
+                var path = result.Data as string;
+                return GetData(path, query);
+            }
+            else
+            {
+                var errors = result.ErrorOutput;
+
+                errors.ToList().ForEach(Console.WriteLine);
+            }
         }
-        else
+        catch (Exception e) when (e is ObjectDisposedException)
         {
-            var errors = result.ErrorOutput;
-            errors.ToList().ForEach(Console.WriteLine);
+            Console.WriteLine("Failed getting token for youtube stream download");
+            return null;
         }
 
-        Console.WriteLine("Error downloading audio");
         return null;
     }
 
 
-    private QueueItem GetData(string path, SearchResult query)
+    private QueueItem? GetData(string path, SearchResult query)
     {
-        FileInfo fileInfo = new(path);
 
-        if (!fileInfo.Exists)
+
+        if (!File.Exists(path))
         {
             Console.WriteLine("File does not exist");
             return null;
@@ -64,19 +84,18 @@ public class YoutubeProvider : IAudioProvider
 
         try
         {
-            var stream = new Lazy<Stream>(fileInfo.OpenRead);
+
             return new QueueItem()
             {
                 Id = query.Id,
                 Title = query.Title,
                 Thumbnail = query.Thumbnail?[0].ToString(),
-                StreamTask = stream,
+                filePath = path,
             };
         }
         catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException or IOException)
         {
-            Console.WriteLine("Error opening file");
-            Console.WriteLine(e.Message);
+            Console.WriteLine("Error getting file stream from youtube download");
 
             return null;
         }
@@ -85,9 +104,9 @@ public class YoutubeProvider : IAudioProvider
 
     public async Task<List<SearchResult>> SearchVideos(string search, int searchCount = 5)
     {
-        List<VideoSearchResult> searchResults = new List<VideoSearchResult>();
+        List<VideoSearchResult> searchResults = [];
 
-        int counter = 0;
+        var counter = 0;
         await foreach (var video in _youtube.Search.GetVideosAsync(search))
         {
             searchResults.Add(video);
@@ -96,13 +115,6 @@ public class YoutubeProvider : IAudioProvider
             {
                 break;
             }
-        }
-
-        _lastSearchResults.Clear();
-
-        foreach (var videoSearchResult in searchResults)
-        {
-            _lastSearchResults.Add(videoSearchResult.Id, videoSearchResult);
         }
 
         return searchResults.Select(x => new SearchResult

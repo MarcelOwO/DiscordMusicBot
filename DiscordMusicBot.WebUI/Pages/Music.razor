@@ -1,4 +1,5 @@
 @page "/Music"
+@using DiscordMusicBot.Core.Enums
 
 @inject ApiController APIController
 
@@ -10,11 +11,8 @@
             <MudText Typo="Typo.h4">Controls</MudText>
 
             <MudStack Spacing="10" Row="true">
-
-
-                <MudIconButton Icon="@Icons.Material.Rounded.SkipPrevious" OnClick="() => APIController.NextSong()">Previous Song</MudIconButton>
-
-                @if (APIController.IsPlaying)
+                <MudIconButton Icon="@Icons.Material.Rounded.SkipPrevious" OnClick="() => APIController.PreviousSong()">Previous Song</MudIconButton>
+                @if (APIController.ApiStatusData.PlaybackState != PlaybackState.Playing)
                 {
                     <MudIconButton Icon="@Icons.Material.Rounded.PlayArrow" OnClick="() => APIController.Play()"> Play Song</MudIconButton>
                 }
@@ -22,31 +20,35 @@
                 {
                     <MudIconButton Icon="@Icons.Material.Rounded.Pause" OnClick="() => APIController.Pause()"> Pause Song</MudIconButton>
                 }
-
-                <MudIconButton Icon="@Icons.Material.Rounded.SkipNext" OnClick="() => APIController.PreviousSong()">Next Song</MudIconButton>
+                <MudIconButton Icon="@Icons.Material.Rounded.SkipNext" OnClick="() => APIController.NextSong()">Next Song</MudIconButton>
 
             </MudStack>
 
             <MudDivider/>
 
-            <MudSlider T="int" bind-Value="APIController.Volume" Min="0" Max="100" ValueChanged="i => APIController.UpdateVolume(i)"></MudSlider>
+            <MudSlider T="int" bind-Value="APIController.Volume" Min="0" Max="100" Step="1" ValueChanged="APIController.OnVolumeChanged"></MudSlider>
         </MudStack>
     </MudPaper>
 
     <MudPaper Class="pa-4">
         <MudStack Spacing="4">
             <MudText Typo="Typo.h4">Currently Playing</MudText>
+            <MudText> @APIController.currentID</MudText>
         </MudStack>
     </MudPaper>
 
     <MudPaper Class="pa-4">
         <MudStack Spacing="4">
             <MudText Typo="Typo.h4">Queue</MudText>
-            @foreach (var song in APIController.Queue)
+            @foreach (var song in APIController.ApiStatusData.QueuedSongs)
             {
                 <MudPaper Class="pa-4">
                     <MudStack Row="true">
                         <MudText>@song.Title</MudText>
+                        @if (song.IsTemp)
+                        {
+                            <MudProgressCircular Size="Size.Small" Color="Color.Secondary"/>
+                        }
 
                         <MudSpacer/>
 
@@ -57,25 +59,36 @@
         </MudStack>
     </MudPaper>
 
-    <MudPaperc Class="pa-4">
+    <MudPaper Class="pa-4">
         <MudStack Spacing="4">
             <MudText Typo="Typo.h4">Search for songs</MudText>
-            <MudTextField @bind-Value="APIController.Search" Label="Search" Variant="Variant.Outlined" OnKeyDown="args => APIController.CheckIfEnterOnSearch(args)"/>
+            <MudTextField @bind-Value="APIController.Search" Label="Search" Variant="Variant.Outlined" OnKeyDown="async (arg) => await APIController.CheckIfEnterOnSearch(arg)"/>
+            <MudGrid>
+                <MudItem xs="2">
+                    <MudSelect @bind-Value="APIController.SelectedAudioProvider">
+                        @foreach (var provider in APIController.AudioProviders)
+                        {
+                            <MudSelectItem Value="provider">@provider</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="10">
+                    <MudButton OnClick="() => APIController.SearchSongsRequest()">Search Songs</MudButton>
+                </MudItem>
+            </MudGrid>
 
-            <MudButton OnClick="() => APIController.SearchSongsRequest()">Search Songs</MudButton>
-
-            @foreach (var song in APIController.LastSongSeachResult)
+            @foreach (var song in APIController.LastSongSearchResult)
             {
                 <MudPaper Class="pa-4">
                     <MudStack Row="true">
                         <MudImage Src="@song.Thumbnail"/>
                         <MudText>@song.Title</MudText>
-                        <MudButton OnClick="() => APIController.AddSongToQueue(song)">Add</MudButton>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Add" OnClick="() => APIController.AddSongToQueue(song)"/>
                     </MudStack>
                 </MudPaper>
             }
         </MudStack>
-    </MudPaperc>
+    </MudPaper>
 </MudStack>
 
 

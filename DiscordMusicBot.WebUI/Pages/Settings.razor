@@ -1,21 +1,41 @@
 @page "/Settings"
+@using DiscordMusicBot.Core.Models
 
 @inject ApiController APIController
 
 <PageTitle>Settings</PageTitle>
 <MudStack>
-
-
     <MudPaper Class="pa-4">
         <MudStack Spacing="4">
             <MudText Typo="Typo.h4">Bot Control</MudText>
             <MudTextField @bind-Value="APIController.Token" Label="Bot Token" Variant="Variant.Outlined"/>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="APIController.StartBot">Start Bot</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="APIController.StopBot">Stop Bot</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="APIController.StartBot">
+                <MudText >
+                    Start Bot
+                </MudText>
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="APIController.StopBot">
+                <MudText>
+                    Stop Bot
+                </MudText>
+            </MudButton>
         </MudStack>
     </MudPaper>
 
-    @if (APIController.BotIsOnline)
+    <MudPaper Class="pa-4 mt-4">
+        <MudStack Spacing="4" Row=" true">
+
+            <MudButton OnClick="async () => await APIController.SaveData()">
+                Save Settings
+            </MudButton>
+
+            <MudButton OnClick="async () => await APIController.GetSavedData()">
+                Load Settings
+            </MudButton>
+
+        </MudStack>
+    </MudPaper>
+    @if (APIController.ApiStatusData.BotIsRunning)
     {
         <MudPaper Class="pa-4 mt-4">
             <MudStack Spacing="4">

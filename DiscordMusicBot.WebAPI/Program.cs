@@ -4,7 +4,6 @@ using DiscordMusicBot.Worker;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<Worker>();
 
@@ -15,7 +14,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+if (false && app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -26,7 +25,7 @@ app.UseCors();
 
 var worker = app.Services.GetRequiredService<Worker>();
 
-app.MapGet("/Check", () => Results.Ok());
+app.MapGet("/Check", () => worker.GetStatus());
 
 BotEndpoints.Map(app, worker);
 
