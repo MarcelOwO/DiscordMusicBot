@@ -1,4 +1,4 @@
-#DiscordBot
+# DiscordBot
 
 A discord bot application that can be controlled via a webui. Project is very simple with little in terms of security. 
 Built with .net and contains a minimal api, worker service and a wasm frontend.
