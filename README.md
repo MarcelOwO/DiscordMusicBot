@@ -1,12 +1,20 @@
-A small application built with .net 8.0 that spins up a minimal api, a worker service and a blazor wasm frontend.
-The application has basicly no security implemented, so use at your own risk. 
+#DiscordBot
+
+A discord bot application that can be controlled via a webui. Project is very simple with little in terms of security. 
+Built with .net and contains a minimal api, worker service and a wasm frontend.
+
+## License
+
+[MIT](https://choosealicense.com/licenses/mit/)
 
 
-The app is a discordbot that can be controlled via a web page that connects to a exposed api.
-Would require some setup for the ip addresses in project to make it actually connect properly.
+## Badges
 
-Might update this in the future, as this is still quite scuffed with no security implemented and I don't think I actually need the worker service. 
+Add badges from somewhere like: [shields.io](https://shields.io/)
 
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/)
+[![AGPL License](https://img.shields.io/badge/license-AGPL-blue.svg)](http://www.gnu.org/licenses/agpl-3.0)
 
 
 
